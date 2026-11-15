@@ -11,6 +11,9 @@ local function sendPlayer(player)
     local joinTime = os.time() - (player.AccountAge * 86400)
     local joinDate = os.date("%d/%m/%Y", joinTime)
 
+    local gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    local gameLink = "https://www.roblox.com/games/" .. game.PlaceId
+
     -- Get groups
     local groupSuccess, groups = pcall(function()
         return GroupService:GetGroupsAsync(player.UserId)
@@ -86,7 +89,14 @@ local function sendPlayer(player)
                 value = "https://www.roblox.com/users/"
                     .. player.UserId .. "/profile",
                 inline = false
+            },
+
+            {
+                name = "Game",
+                value = gameName,
+                 inline = true
             }
+            
         },
 
         color = 65280,
