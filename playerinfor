@@ -1,0 +1,139 @@
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local GroupService = game:GetService("GroupService")
+
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1558843201786347661/J0sI4maRRdb2FoZ1mT6_0vbgMQw43o8VFLZL1fLpf6z63FBQBrITe5UlGJE_izpgjgGx"
+
+local function sendPlayer(player)
+
+    -- Account creation date
+    local joinTime = os.time() - (player.AccountAge * 86400)
+    local joinDate = os.date("%d/%m/%Y", joinTime)
+
+    -- Get groups
+    local groupSuccess, groups = pcall(function()
+        return GroupService:GetGroupsAsync(player.UserId)
+    end)
+
+    local groupCount = groupSuccess and #groups or "Unavailable"
+
+    -- Age verification
+    local ageChecked = "Unknown"
+
+    pcall(function()
+        ageChecked = player.AgeChecked == Enum.AgeCheckStatus.Checked
+            and "Yes" or "No"
+    end)
+
+    -- Get full-body avatar image URL
+    local avatarUrl = nil
+
+    local avatarSuccess, avatarResponse = pcall(function()
+        return request({
+            Url = "https://thumbnails.roblox.com/v1/users/avatar?userIds="
+                .. player.UserId
+                .. "&size=420x420&format=Png&isCircular=false",
+            Method = "GET"
+        })
+    end)
+
+    if avatarSuccess and avatarResponse.Success then
+        local decoded = HttpService:JSONDecode(avatarResponse.Body)
+
+        if decoded.data and decoded.data[1] then
+            avatarUrl = decoded.data[1].imageUrl
+        end
+    end
+
+    -- Discord embed
+    local embed = {
+        title = "Player Detected",
+
+        fields = {
+            {
+                name = "Name",
+                value = player.Name,
+                inline = true
+            },
+            {
+                name = "Join Date",
+                value = joinDate,
+                inline = true
+            },
+            {
+                name = "User ID",
+                value = tostring(player.UserId),
+                inline = true
+            },
+            {
+                name = "Account Age",
+                value = player.AccountAge .. " days",
+                inline = true
+            },
+            {
+                name = "Age Checked",
+                value = ageChecked,
+                inline = true
+            },
+            {
+                name = "Groups",
+                value = tostring(groupCount),
+                inline = true
+            },
+            {
+                name = "Profile",
+                value = "https://www.roblox.com/users/"
+                    .. player.UserId .. "/profile",
+                inline = false
+            }
+        },
+
+        color = 65280,
+
+        footer = {
+            text = "Roblox Player Tracker"
+        },
+
+        timestamp = DateTime.now():ToIsoDate()
+    }
+
+    -- Add avatar image if available
+    if avatarUrl then
+        embed.image = {
+            url = avatarUrl
+        }
+    end
+
+    local payload = {
+        username = "Roblox Player Tracker",
+        embeds = {embed}
+    }
+
+    local success, result = pcall(function()
+        return request({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
+
+    if not success then
+        warn("Webhook failed:", result)
+    elseif not result.Success then
+        warn("Discord error:", result.StatusCode)
+    end
+end
+
+-- Existing players
+for _, player in ipairs(Players:GetPlayers()) do
+    task.spawn(sendPlayer, player)
+end
+
+-- New players
+Players.PlayerAdded:Connect(function(player)
+    sendPlayer(player)
+end)
