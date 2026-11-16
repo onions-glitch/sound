@@ -2,34 +2,59 @@
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local GroupService = game:GetService("GroupService")
+local MarketplaceService = game:GetService("MarketplaceService")
 
+-- Paste your NEW Discord webhook URL here
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1558843201786347661/J0sI4maRRdb2FoZ1mT6_0vbgMQw43o8VFLZL1fLpf6z63FBQBrITe5UlGJE_izpgjgGx"
 
 local function sendPlayer(player)
 
-    -- Account creation date
+    -- Account creation date (estimated from AccountAge)
     local joinTime = os.time() - (player.AccountAge * 86400)
     local joinDate = os.date("%d/%m/%Y", joinTime)
 
-    local gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    -- Game information
+    local gameName = "Unknown"
+
+    pcall(function()
+        gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+    end)
+
     local gameLink = "https://www.roblox.com/games/" .. game.PlaceId
 
     -- Get groups
+    local groupCount = "Unavailable"
+
     local groupSuccess, groups = pcall(function()
         return GroupService:GetGroupsAsync(player.UserId)
     end)
 
-    local groupCount = groupSuccess and #groups or "Unavailable"
+    if groupSuccess and groups then
+        groupCount = #groups
+    end
 
     -- Age verification
     local ageChecked = "Unknown"
 
     pcall(function()
         ageChecked = player.AgeChecked == Enum.AgeCheckStatus.Checked
-            and "Yes" or "No"
+            and "Checked" or "Not Checked"
     end)
 
-    -- Get full-body avatar image URL
+    -- Get rig type
+    local rigType = "Unknown"
+
+    local character = player.Character
+
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            rigType = humanoid.RigType.Name
+        end
+    end
+
+    -- Get avatar thumbnail
     local avatarUrl = nil
 
     local avatarSuccess, avatarResponse = pcall(function()
@@ -42,20 +67,30 @@ local function sendPlayer(player)
     end)
 
     if avatarSuccess and avatarResponse.Success then
-        local decoded = HttpService:JSONDecode(avatarResponse.Body)
+        local decodeSuccess, decoded = pcall(function()
+            return HttpService:JSONDecode(avatarResponse.Body)
+        end)
 
-        if decoded.data and decoded.data[1] then
+        if decodeSuccess and decoded.data and decoded.data[1] then
             avatarUrl = decoded.data[1].imageUrl
         end
     end
 
+    -- Profile link
+    local profileLink = "https://www.roblox.com/users/"
+        .. player.UserId .. "/profile"
+
     -- Discord embed
     local embed = {
-        title = "Player Detected",
+        title = "Player Information",
+
+        thumbnail = avatarUrl and {
+            url = avatarUrl
+        } or nil,
 
         fields = {
             {
-                name = "Name",
+                name = "User",
                 value = player.Name,
                 inline = true
             },
@@ -70,8 +105,23 @@ local function sendPlayer(player)
                 inline = true
             },
             {
+                name = "Joined Groups",
+                value = tostring(groupCount),
+                inline = true
+            },
+            {
                 name = "Account Age",
                 value = player.AccountAge .. " days",
+                inline = true
+            },
+            {
+                name = "Rig Type",
+                value = rigType,
+                inline = true
+            },
+            {
+                name = "Profile",
+                value = profileLink,
                 inline = true
             },
             {
@@ -80,23 +130,10 @@ local function sendPlayer(player)
                 inline = true
             },
             {
-                name = "Groups",
-                value = tostring(groupCount),
-                inline = true
-            },
-            {
-                name = "Profile",
-                value = "https://www.roblox.com/users/"
-                    .. player.UserId .. "/profile",
-                inline = false
-            },
-
-            {
                 name = "Game",
-                value = gameName,
-                 inline = true
+                value = "[" .. gameName .. "](" .. gameLink .. ")",
+                inline = false
             }
-            
         },
 
         color = 65280,
@@ -108,18 +145,13 @@ local function sendPlayer(player)
         timestamp = DateTime.now():ToIsoDate()
     }
 
-    -- Add avatar image if available
-    if avatarUrl then
-        embed.image = {
-            url = avatarUrl
-        }
-    end
-
+    -- Webhook payload
     local payload = {
         username = "Roblox Player Tracker",
         embeds = {embed}
     }
 
+    -- Send to Discord
     local success, result = pcall(function()
         return request({
             Url = WEBHOOK_URL,
@@ -134,7 +166,9 @@ local function sendPlayer(player)
     if not success then
         warn("Webhook failed:", result)
     elseif not result.Success then
-        warn("Discord error:", result.StatusCode)
+        warn("Discord error:", result.StatusCode, result.Body)
+    else
+        print("Sent player information for:", player.Name)
     end
 end
 
@@ -145,5 +179,5 @@ end
 
 -- New players
 Players.PlayerAdded:Connect(function(player)
-    sendPlayer(player)
+    task.spawn(sendPlayer, player)
 end)
