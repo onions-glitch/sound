@@ -9,175 +9,175 @@ local WEBHOOK_URL = "https://discord.com/api/webhooks/1558843201786347661/J0sI4m
 
 local function sendPlayer(player)
 
-    -- Account creation date (estimated from AccountAge)
-    local joinTime = os.time() - (player.AccountAge * 86400)
-    local joinDate = os.date("%d/%m/%Y", joinTime)
+	-- Account creation date (estimated from AccountAge)
+	local joinTime = os.time() - (player.AccountAge * 86400)
+	local joinDate = os.date("%d/%m/%Y", joinTime)
 
-    -- Game information
-    local gameName = "Unknown"
+	-- Game information
+	local gameName = "Unknown"
 
-    pcall(function()
-        gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
-    end)
+	pcall(function()
+		gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+	end)
 
-    local gameLink = "https://www.roblox.com/games/" .. game.PlaceId
+	local gameLink = "https://www.roblox.com/games/" .. game.PlaceId
 
-    -- Get groups
-    local groupCount = "Unavailable"
+	-- Get groups
+	local groupCount = "Unavailable"
 
-    local groupSuccess, groups = pcall(function()
-        return GroupService:GetGroupsAsync(player.UserId)
-    end)
+	local groupSuccess, groups = pcall(function()
+		return GroupService:GetGroupsAsync(player.UserId)
+	end)
 
-    if groupSuccess and groups then
-        groupCount = #groups
-    end
+	if groupSuccess and groups then
+		groupCount = #groups
+	end
 
-    -- Age verification
-    local ageChecked = "Unknown"
+	-- Age verification
+	local ageChecked = "Unknown"
 
-    pcall(function()
-        ageChecked = player.AgeChecked == Enum.AgeCheckStatus.Checked
-            and "Checked" or "Not Checked"
-    end)
+	pcall(function()
+		ageChecked = player.AgeChecked == Enum.AgeCheckStatus.Checked
+			and "Checked" or "Not Checked"
+	end)
 
-    -- Get rig type
-    local rigType = "Unknown"
+	-- Get rig type
+	local rigType = "Unknown"
 
-    local character = player.Character
+	local character = player.Character
 
-    if character then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if character then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
 
-        if humanoid then
-            rigType = humanoid.RigType.Name
-        end
-    end
+		if humanoid then
+			rigType = humanoid.RigType.Name
+		end
+	end
 
-    -- Get avatar thumbnail
-    local avatarUrl = nil
+	-- Get avatar thumbnail
+	local avatarUrl = nil
 
-    local avatarSuccess, avatarResponse = pcall(function()
-        return request({
-            Url = "https://thumbnails.roblox.com/v1/users/avatar?userIds="
-                .. player.UserId
-                .. "&size=420x420&format=Png&isCircular=false",
-            Method = "GET"
-        })
-    end)
+	local avatarSuccess, avatarResponse = pcall(function()
+		return request({
+			Url = "https://thumbnails.roblox.com/v1/users/avatar?userIds="
+				.. player.UserId
+				.. "&size=420x420&format=Png&isCircular=false",
+			Method = "GET"
+		})
+	end)
 
-    if avatarSuccess and avatarResponse.Success then
-        local decodeSuccess, decoded = pcall(function()
-            return HttpService:JSONDecode(avatarResponse.Body)
-        end)
+	if avatarSuccess and avatarResponse.Success then
+		local decodeSuccess, decoded = pcall(function()
+			return HttpService:JSONDecode(avatarResponse.Body)
+		end)
 
-        if decodeSuccess and decoded.data and decoded.data[1] then
-            avatarUrl = decoded.data[1].imageUrl
-        end
-    end
+		if decodeSuccess and decoded.data and decoded.data[1] then
+			avatarUrl = decoded.data[1].imageUrl
+		end
+	end
 
-    -- Profile link
-    local profileLink = "https://www.roblox.com/users/"
-        .. player.UserId .. "/profile"
+	-- Profile link
+	local profileLink = "https://www.roblox.com/users/"
+		.. player.UserId .. "/profile"
 
-    -- Discord embed
-    local embed = {
-        title = "Player Information",
+	-- Discord embed
+	local embed = {
+		title = "Player Information",
 
-        thumbnail = avatarUrl and {
-            url = avatarUrl
-        } or nil,
+		thumbnail = avatarUrl and {
+			url = avatarUrl
+		} or nil,
 
-        fields = {
-            {
-                name = "User",
-                value = player.Name,
-                inline = true
-            },
-            {
-                name = "Join Date",
-                value = joinDate,
-                inline = true
-            },
-            {
-                name = "User ID",
-                value = tostring(player.UserId),
-                inline = true
-            },
-            {
-                name = "Joined Groups",
-                value = tostring(groupCount),
-                inline = true
-            },
-            {
-                name = "Account Age",
-                value = player.AccountAge .. " days",
-                inline = true
-            },
-            {
-                name = "Rig Type",
-                value = rigType,
-                inline = true
-            },
-            {
-                name = "Profile",
-                value = profileLink,
-                inline = true
-            },
-            {
-                name = "Age Checked",
-                value = ageChecked,
-                inline = true
-            },
-            {
-                name = "Game",
-                value = "[" .. gameName .. "](" .. gameLink .. ")",
-                inline = false
-            }
-        },
+		fields = {
+			{
+				name = "User",
+				value = player.Name,
+				inline = true
+			},
+			{
+				name = "Join Date",
+				value = joinDate,
+				inline = true
+			},
+			{
+				name = "User ID",
+				value = tostring(player.UserId),
+				inline = true
+			},
+			{
+				name = "Joined Groups",
+				value = tostring(groupCount),
+				inline = true
+			},
+			{
+				name = "Account Age",
+				value = player.AccountAge .. " days",
+				inline = true
+			},
+			{
+				name = "Rig Type",
+				value = rigType,
+				inline = true
+			},
+			{
+				name = "Profile",
+				value = profileLink,
+				inline = true
+			},
+			{
+				name = "Age Checked",
+				value = ageChecked,
+				inline = true
+			},
+			{
+				name = "Game",
+				value = "[" .. gameName .. "](" .. gameLink .. ")",
+				inline = false
+			}
+		},
 
-        color = 65280,
+		color = 65280,
 
-        footer = {
-            text = "Roblox Player Tracker"
-        },
+		footer = {
+			text = "Roblox Player Tracker"
+		},
 
-        timestamp = DateTime.now():ToIsoDate()
-    }
+		timestamp = DateTime.now():ToIsoDate()
+	}
 
-    -- Webhook payload
-    local payload = {
-        username = "Roblox Player Tracker",
-        embeds = {embed}
-    }
+	-- Webhook payload
+	local payload = {
+		username = player.Name,
+		embeds = {embed}
+	}
 
-    -- Send to Discord
-    local success, result = pcall(function()
-        return request({
-            Url = WEBHOOK_URL,
-            Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
-            Body = HttpService:JSONEncode(payload)
-        })
-    end)
+	-- Send to Discord
+	local success, result = pcall(function()
+		return request({
+			Url = WEBHOOK_URL,
+			Method = "POST",
+			Headers = {
+				["Content-Type"] = "application/json"
+			},
+			Body = HttpService:JSONEncode(payload)
+		})
+	end)
 
-    if not success then
-        warn("Webhook failed:", result)
-    elseif not result.Success then
-        warn("Discord error:", result.StatusCode, result.Body)
-    else
-        print("Sent player information for:", player.Name)
-    end
+	if not success then
+		warn("Webhook failed:", result)
+	elseif not result.Success then
+		warn("Discord error:", result.StatusCode, result.Body)
+	else
+		print("Sent player information for:", player.Name)
+	end
 end
 
 -- Existing players
 for _, player in ipairs(Players:GetPlayers()) do
-    task.spawn(sendPlayer, player)
+	task.spawn(sendPlayer, player)
 end
 
 -- New players
 Players.PlayerAdded:Connect(function(player)
-    task.spawn(sendPlayer, player)
+	task.spawn(sendPlayer, player)
 end)
